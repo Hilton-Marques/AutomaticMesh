@@ -1,0 +1,31 @@
+classdef triangle < handle
+    properties
+        nodes
+        pts
+        triadj = triangle.empty;
+        mesh
+    end
+    methods
+        function this = triangle(nodes)
+            if nargin > 0
+                
+            end
+        end
+        function out = getAdj(this,i)
+            out = triangle.empty;
+            nodes =  this.triadj(i).nodes;
+            if ~isempty(nodes)
+                meshNodes = [this.mesh(:).nodes];
+                meshTri = zeros(length(this.mesh),3);
+                meshTri(:,1) = meshNodes(1:3:end)';
+                meshTri(:,2) = meshNodes(2:3:end)';
+                meshTri(:,3) = meshNodes(3:3:end)';
+                [~,loc] = ismember(nodes,meshTri,'rows');
+                out = this.mesh(loc);
+            end
+        end
+        function show(this,color)
+            triplot([1,2,3],this.pts(:,1),this.pts(:,2),'Color',color);
+        end
+    end
+end
