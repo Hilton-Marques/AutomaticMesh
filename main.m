@@ -1,20 +1,24 @@
 % Clear workspace
-clear
-close(findall(0,'Type','figure'));
-clc;
+% clear
+% close(findall(0,'Type','figure'));
+% clc;
 %% Input
 nC = 2; % number of curves
 nS = 200; % number of subdivisions for each curve
 ng = 60;  % number of subdivisions for grid
 nB = nC*nS - 2*(nC-1); % Number of vectors on boundary
 %% Curves
-t = linspace(0,pi,nS);
-x = linspace(-1,1,nS);
-c1 = [cos(t)',sin(t)'];
-c2 = [x',zeros(nS,1)];
+t = linspace(0,2.3561944901923448,nS);
+% x = linspace(0,1,nS);
+radius = 6;
+c1 = radius * [cos(t)',sin(t)'] + [3,4];
+c2 = bezier([-1.2426406871192857, 8.2426406871192857],[9, 4],[-2.7207293666026877, 5.1017274472168905],[4.6055662188099804, 8.0153550863723613],nS);
 Curves = {c1,c2};
+% edgesX = 1:nB - 1;
+% edgesY = 2:nB;
+% edges = [edgesX', edgesY'];
 pol = [c1;c2(2:end-1,:)]; % convex hull
-bool = [1;zeros(nS-2,1);1;zeros(nS-2,1)];
+% bool = [1;zeros(nS-2,1);1;zeros(nS-2,1)];
 %% Create mesh
 bd = getBd(Curves,nS);   % bounding box
 line1 = linspace(bd(1),bd(2),ng);
@@ -31,9 +35,7 @@ ux = mef.Solver(vfrBd(:,1));
 uy = mef.Solver(vfrBd(:,2));
 u = [ux,uy];
 [ptsSing,triSing,idxPre,ptSing] = getSingularPts(mesh,total,u);
-figure
-set(gca,'XColor', 'none','YColor','none')
-hold on
+
 %% main loop
 for i = 1:length(ptSing)
     ptS = ptSing(i);
@@ -42,9 +44,13 @@ for i = 1:length(ptSing)
     ptS.initialize();
     ptS.integrate();
 end
-[p1,p2,p3,p4] = transfinito(ptSing,Curves,nS,nC,pol);
+% [p1,p2,p3,p4] = transfinito(ptSing,Curves,nS,nC,pol);
 %% plot
 %1
+figure
+set(gca,'XColor', 'none','YColor','none')
+hold on
+
 axis equal
 ax = gca;
 plot(c1(:,1),c1(:,2),'Color','b');
@@ -59,15 +65,15 @@ crossBd = createCrossVF(vfrBd);
 %quiver(pol(:,1),pol(:,2),0.025*crossBd(:,5),0.025*crossBd(:,6),'AutoScale','off','Color','g')
 %quiver(pol(:,1),pol(:,2),0.025*crossBd(:,7),0.025*crossBd(:,8),'AutoScale','off','Color','g')
 %4
-%quiver(pol(:,1),pol(:,2),0.1*vfrBd(:,1),0.1*vfrBd(:,2),'AutoScale','off','Color','g')
+quiver(pol(:,1),pol(:,2),0.1*vfrBd(:,1),0.1*vfrBd(:,2),'AutoScale','off','Color','g')
 %5
 %plot(inside(:,1),inside(:,2),'x','Color','y');
 %6
 %triplot(meshTri,total(:,1),total(:,2),'Color','r');
 %7
-%quiver(total(:,1),total(:,2),0.1*u(:,1),0.1*u(:,2),'AutoScale','off','Color','g')
+quiver(total(:,1),total(:,2),0.1*u(:,1),0.1*u(:,2),'AutoScale','off','Color','g')
 %8
-%plot(ptsSing(:,1),ptsSing(:,2),'.','Color','cyan','MarkerSize',20)
+plot(ptsSing(:,1),ptsSing(:,2),'.','Color','cyan','MarkerSize',20)
 %9
 % crossBd = createCrossVF(u);
 % quiver(total(:,1),total(:,2),0.025*crossBd(:,1),0.025*crossBd(:,2),'AutoScale','off','Color','g')
@@ -77,13 +83,13 @@ crossBd = createCrossVF(vfrBd);
 
 %plot esqueleto
 
-p1.plot();
-%exportgraphics(ax,'myplot12.png','Resolution',1000)
-p2.plot();
-%exportgraphics(ax,'myplot13.png','Resolution',1000)
-p3.plot();
-%exportgraphics(ax,'myplot14.png','Resolution',1000)
-p4.plot();
+% p1.plot();
+% %exportgraphics(ax,'myplot12.png','Resolution',1000)
+% p2.plot();
+% %exportgraphics(ax,'myplot13.png','Resolution',1000)
+% p3.plot();
+% %exportgraphics(ax,'myplot14.png','Resolution',1000)
+% p4.plot();
 %exportgraphics(ax,'myplot15.png','Resolution',1000)
 %
 % for i = 1:length(internalCurves)
@@ -101,6 +107,7 @@ p4.plot();
 function out = getBd(Curves,n)
 nt = length(Curves)*n;
 x = zeros(nt,1);
+y = zeros(nt,1);
 j =1;
 for i = 1: length(Curves)
     c = Curves{i};
