@@ -4,8 +4,8 @@ close(findall(0,'Type','figure'));
 clc;
 %% Input
 nC = 2; % number of curves
-nS = 200; % number of subdivisions for each curve
-ng = 60;  % number of subdivisions for grid
+nS = 80; % number of subdivisions for each curve
+ng = 30;  % number of subdivisions for grid
 nB = nC*nS - 2*(nC-1); % Number of vectors on boundary
 %% Curves
 t = linspace(0,pi,nS);
@@ -42,7 +42,7 @@ for i = 1:length(ptSing)
     ptS.initialize();
     ptS.integrate();
 end
-[p1,p2,p3,p4] = transfinito(ptSing,Curves,nS,nC,pol);
+[p1,p2,p3,p4] = transfinito(ptSing,Curves);
 %% plot
 %1
 axis equal
@@ -86,10 +86,10 @@ p3.plot();
 p4.plot();
 %exportgraphics(ax,'myplot15.png','Resolution',1000)
 %
-% for i = 1:length(internalCurves)
-%     ci = internalCurves{i};
-%     plot(ci(:,1),ci(:,2),'color','red');
-% end
+for i = 1:length(internalCurves)
+    ci = internalCurves{i};
+    plot(ci(:,1),ci(:,2),'color','red');
+end
 
 %exportgraphics(ax,'myplot16.png','Resolution',1000)
 
@@ -317,7 +317,7 @@ for i=1:length(ptSing)
     end
 end
 end
-function [p1,p2,p3,p4] = transfinito(ptSing,Curves,nS,nC,pol)
+function [p1,p2,p3,p4] = transfinito(ptSing,Curves)
 %% Divide to transfinite
 %Get little parts
 internalCurves = cell.empty;
