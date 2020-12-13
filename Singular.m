@@ -61,7 +61,7 @@ classdef Singular < handle
                             %triNext.show(this.color);
                             stream(end+1,1:2) = xbef;
                             stream(end+1,1:2) = xnext;
-                            line([xbef(1),xnext(1)],[xbef(2),xnext(2)],'Color','r');
+                            %line([xbef(1),xnext(1)],[xbef(2),xnext(2)],'Color','r');
                             cross1 = this.createCross(this.u(triNext.nodes(1),:));
                             cross2 = this.createCross(this.u(triNext.nodes(2),:));
                             cross3 = this.createCross(this.u(triNext.nodes(3),:));
@@ -95,7 +95,7 @@ classdef Singular < handle
                                 xnext = pi;
                                 stream(end+1,1:2) = xbef;
                                 stream(end+1,1:2) = xnext;
-                                line([xbef(1),xnext(1)],[xbef(2),xnext(2)],'Color','black');
+                                %line([xbef(1),xnext(1)],[xbef(2),xnext(2)],'Color','black');
                                 ptBoundEdge(end+1,1:2) = triBef.nodes(edge);
                                 ptBound(end+1,1:2) = xnext;
                                 %exportgraphics(gca,'myplot10.png','Resolution',1000); 
@@ -112,7 +112,7 @@ classdef Singular < handle
             this.ptBound = ptBound;
         end
         function [pei,vei,tei] = intersec(this,edge,v)
-            n = 20;
+            n = 10;
             pei = [];
             vei = [];
             tei = [];
@@ -122,43 +122,46 @@ classdef Singular < handle
             vj = v(2,:);
             t = linspace(0,1,n+1);
             pk = (1 - t(1))*pi + t(1)*pj;
-            u = (pk - this.pt)/norm(pk - this.pt);
+            u = (pk - this.pt);
+            u = u/norm(u);
             vk = (1 - t(1))*vi + t(1)*vj;
             crossk = this.createCross(vk);
             cross1bef = crossk(1,:);
             cross2bef = crossk(2,:);
-            r1bef = det([cross1bef;u]);
-            r2bef = det([cross2bef;u]);
+            sign1DetBef = det([cross1bef;u]);
+            sign2DetBef = det([cross2bef;u]);
             for i = 2:n+1
                 pk = (1 - t(i))*pi + t(i)*pj;
-                u = (pk - this.pt)/norm((pk - this.pt));
+                u = (pk - this.pt);
+                u = u/norm(u);
                 vk = (1 - t(i))*vi + t(i)*vj;
-                [r1next,r2next,cross1next,cross2next] = ...
+                [sign1DetNext,sign2DetNext,cross1next,cross2next] = ...
                     this.verifySign(vk,u,cross1bef,cross2bef);
-                bool1 = sign(r1bef) ~= sign(r1next);
-                bool2 = sign(r2bef) ~= sign(r2next);
+                bool1 = sign(sign1DetBef) ~= sign(sign1DetNext);
+                bool2 = sign(sign2DetBef) ~= sign(sign2DetNext);
                 if (bool1 || bool2)
                     if bool1
-                        rnext = r1next;
+                        signNext = sign1DetNext;
                         crossnext = cross1next;
                     else
-                        rnext = r2next;
+                        signNext = sign2DetNext;
                         crossnext = cross2next;
                     end
                     tbef = t(i-1);
                     tnext = t(i);
                     % Bissection method
                     for j = 1:10
-                        rbef = rnext;
+                        signBef = signNext;
                         crossbef = crossnext;
                         newt = (tbef + tnext)/2;
                         pk = (1 - newt)*pi + newt*pj;
                         u = pk - this.pt;
+                        u = u/norm(u);
                         vk = (1 - newt)*vi + newt*vj;
                         cross = this.createCross(vk);
                         crossnext = this.findNearestVector(cross,crossbef);
-                        rnext = det([crossnext;u]);
-                        if sign(rnext) ~= sign(rbef)
+                        signNext = det([crossnext;u]);
+                        if sign(signNext) ~= sign(signBef)
                             tbef = newt;
                         else
                             tnext = newt;
@@ -167,6 +170,7 @@ classdef Singular < handle
                     tk = (tnext + tbef)/2;
                     pk = (1 - tk)*pi + tk*pj;
                     u = (pk - this.pt);
+                    u = u/norm(u);
                     vk = (1 - tk)*vi + tk*vj;
                     cross = this.createCross(vk);
                     vk = this.findNearestVector(cross,crossbef);
@@ -179,8 +183,8 @@ classdef Singular < handle
                     tei(end+1) = tk;
                     vei(end+1,1:2) = d;
                 end
-                r1bef = r1next;
-                r2bef = r2next;
+                sign1DetBef = sign1DetNext;
+                sign2DetBef = sign2DetNext;
             end
         end
         function out = findCross(this,tNext,triNextNodes,edgeNext)

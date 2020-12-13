@@ -2,9 +2,9 @@
 clear
 close(findall(0,'Type','figure'));
 clc;
-%% Input 
+%% Input
 nC = 2; % number of curves
-nS = 100; % number of subdivisions for each curve
+nS = 80; % number of subdivisions for each curve
 ng = 30;  % number of subdivisions for grid
 nB = nC*nS - 2*(nC-1); % Number of vectors on boundary
 %% Curves
@@ -14,13 +14,14 @@ c1 = [cos(t)',sin(t)'];
 c2 = [x',zeros(nS,1)];
 Curves = {c1,c2};
 pol = [c1;c2(2:end-1,:)]; % convex hull
+bool = [1;zeros(nS-2,1);1;zeros(nS-2,1)];
 %% Create mesh
-bd = getBd(Curves,nS);   % bounding box 
+bd = getBd(Curves,nS);   % bounding box
 line1 = linspace(bd(1),bd(2),ng);
 line2 = linspace(bd(3),bd(4),ng);
 [X,Y] = meshgrid(line1,line2);
 inside = getGridInside(X,Y,pol);
-total = [pol;inside];  % total points 
+total = [pol;inside];  % total points
 meshTri = delaunay(total(:,1),total(:,2));
 mesh = createMesh(meshTri,total);
 %% get representative VF and Solve
@@ -41,53 +42,108 @@ for i = 1:length(ptSing)
     ptS.initialize();
     ptS.integrate();
 end
-keyboard;
-% %% Divide to transfinite
-% patch = cell(1,4);
-% bigCurves = cell.empty;
-% sideCurves = cell.empty;
-% %Get little parts
-% for i = 1:length(ptSing)
-%     littleCurves = cell.empty;
-%     ptS = ptSing(i);
-%     ptBound = ptS.ptBound;
-%     ptBoundEdge = ptS.ptBoundEdge;
-%     for j = 1: size(ptBound,1)
-%         pt = ptBound(j,:);
-%         inter = ptBoundEdge(j,1);
-%         sideCurve = {whichCurve(pt,ptS.streams)};
-%         littleCurves(end+1) = sideCurve;
-%         sideCurves(end+1) = sideCurve; 
-%         idC = floor(inter(1)/nS) + 1;
-%         curve = Curves{idC};
-%         id = inter - (idC - 1)*nS - 2*(idC - 1);
-%         newC1 = [curve(1:id,:);pt];
-%         newC2 = [pt;curve(id+1:end,:)];
-%         if size(newC1,1) < size(newC2,1)
-%             littleCurves(end+1) = {newC1};
-%             bigCurves(end+1) = {newC2};
-%         else
-%             littleCurves(end+1) = {newC2};
-%             bigCurves(end+1) = {newC1};            
-%         end
-%     end
-%     patch(i,1) = littleCurves;
-% end
-% %Internal patchs
-% for i = length(sideCurves)
-%     c = sideCurves(i,:);
-%     ptEnd = c(end,:);
-%     intercept = {whichCurve(pt,bigCurves)};
-%     
-%     
-% end
-
+%% Divide to transfinite
+patch = cell(1,4);
+bigCurves = cell.empty;
+sideCurves = cell.empty;
+%Get little parts
+internalCurves = cell.empty;
+boundaryCurves = cell.empty;
+mainCurves = cell.empty;
+%Internal curves
+for i = 1:length(ptSing)
+    ptS = ptSing(i);
+    ptBound = ptS.ptBound;
+    ptBoundEdge = ptS.ptBoundEdge;
+    for j = 1: size(ptBound,1)
+        pt = ptBound(j,:);
+        inter = ptBoundEdge(j,1);
+        sideCurve = {whichCurve(pt,ptS.streams)};
+        boundaryCurves(end+1) = sideCurve;
+        internalCurves(end+1) = sideCurve;
+    end
+    for j = 1:length(ptS.streams)
+        c = ptS.streams{j};
+        cbd2 = boundaryCurves{1};
+        cbd3 = boundaryCurves{2};
+        if c(end,:) ~= cbd2(end,:) & c(end,:) ~= cbd3(end,:)
+            mainCurves(end+1) = {c};
+            break;
+        end
+    end
+    boundaryCurves = cell.empty;
+end
+cmain1 = mainCurves{1};
+cmain2 = mainCurves{2};
+N = [size(cmain1,1),size(cmain2,1)];
+N1 = size(cmain1,1);
+N2 = size(cmain2,1);
+Nmax = max(N1,N2);
+def = Nmax - N2;
+pt2 = cmain2(end,:);
+teste = cmain1 - pt2;
+norm = vecnorm(teste,2,2);
+[~,id] = min(norm);
+mergedCurve = (cmain1(id:end,:) + flip(cmain2((id-def):end,:) ) )/2;
+mainCurve = [cmain1(1:id,:);mergedCurve;flip(cmain2(1:(id-def),:))];
+internalCurves(end+1) = {mainCurve};
+% External curves
+externalCurves = cell.empty;
+n = 1;
+ptBoundEdgeParent = [ptSing(:).ptBoundEdge];
+ptBoundEdge = ptBoundEdgeParent(:);
+indexBef = 1;
+for i = 1:length(Curves)
+    newN = ( n + nS -1 - nC*(i-1)) ;
+    ptBoundEdge = [ptBoundEdge ; n ; newN];
+    ptBoundEdge = sort(ptBoundEdge);
+    [~,index] = ismember(newN,ptBoundEdge);
+    indexCurves = ptBoundEdge(indexBef:index); %será sempre um número par
+    for j = 1:2:size(indexCurves)
+        newCurve = pol(indexCurves(j):indexCurves(j+1),:);
+        if ismember(indexCurves(j),ptBoundEdgeParent)
+            pt = whichSing(indexCurves(j),ptSing);
+            newCurve = [pt ; newCurve];
+            if i > 1
+                if (indexCurves(j) == n )
+                    c = Curves{i};
+                    pt = c(1,:);
+                    newCurve = [pt ; newCurve];
+                end
+            end
+        elseif ismember(indexCurves(j+1),ptBoundEdgeParent)
+            pt = whichSing(indexCurves(j+1),ptSing);
+            newCurve = [newCurve ; pt];
+            if i > 1
+                if (indexCurves(j+1) == newN  )
+                    c = Curves{i};
+                    pt = c(end,:);
+                    newCurve = [newCurve;pt];
+                end
+            end
+        end
+        externalCurves(end+1) = {newCurve};
+    end
+    n = ( n + nS -1 - nC*(i-1))  + 1;
+    indexBef = index+1;
+end
+patch1 = {internalCurves{3},flip(externalCurves{1}),internalCurves{4},externalCurves{6}};
+p1 = Projetor(patch1);
+patch2 = {internalCurves{5},flip(externalCurves{2}),internalCurves{2},internalCurves{4}};
+p2 = Projetor(patch2);
+patch3 = {externalCurves{3},internalCurves{1},flip(internalCurves{2}),externalCurves{4}};
+p3 = Projetor(patch3);
+patch4 = {externalCurves{5},flip(internalCurves{5}),flip(internalCurves{1}),flip(internalCurves{3})};
+p4 = Projetor(patch4);
 %% plot
 %1
+axis equal
+ax = gca;
 plot(c1(:,1),c1(:,2),'Color','b');
 plot(c2(:,1),c2(:,2),'Color','r');
+exportgraphics(ax,'myplot17.png','Resolution',1000)
 %2
-quiver(pol(:,1),pol(:,2),0.1*tan(:,1),0.1*tan(:,2),'AutoScale','off','Color','g')
+%quiver(pol(:,1),pol(:,2),0.1*tan(:,1),0.1*tan(:,2),'AutoScale','off','Color','g')
 %3
 crossBd = createCrossVF(vfrBd);
 %quiver(pol(:,1),pol(:,2),0.025*crossBd(:,1),0.025*crossBd(:,2),'AutoScale','off','Color','g')
@@ -110,11 +166,26 @@ crossBd = createCrossVF(vfrBd);
 % quiver(total(:,1),total(:,2),0.025*crossBd(:,3),0.025*crossBd(:,4),'AutoScale','off','Color','g')
 % quiver(total(:,1),total(:,2),0.025*crossBd(:,5),0.025*crossBd(:,6),'AutoScale','off','Color','g')
 % quiver(total(:,1),total(:,2),0.025*crossBd(:,7),0.025*crossBd(:,8),'AutoScale','off','Color','g')
-axis equal
-ax = gca;
-% 
 
-%exportgraphics(ax,'myplot11.png','Resolution',1000) 
+%plot esqueleto
+
+p1.plot();
+%exportgraphics(ax,'myplot12.png','Resolution',1000)
+p2.plot();
+%exportgraphics(ax,'myplot13.png','Resolution',1000)
+p3.plot();
+%exportgraphics(ax,'myplot14.png','Resolution',1000)
+p4.plot();
+%exportgraphics(ax,'myplot15.png','Resolution',1000)
+%
+for i = 1:length(internalCurves)
+    ci = internalCurves{i};
+    plot(ci(:,1),ci(:,2),'color','red');
+end
+
+%exportgraphics(ax,'myplot16.png','Resolution',1000)
+
+%exportgraphics(ax,'myplot11.png','Resolution',1000)
 
 
 
@@ -202,17 +273,17 @@ for i = 1:nc
 end
 count1 = 1;
 count2 = 1;
-  for i = 1:nc
-      VfrBd(count1,:) = (bd(count2,:) + bd(count2+2,:))/2;
-      count1 = count1 + nv(i)-1;
-      count2 = count2 + 1;
-  end
+for i = 1:nc
+    VfrBd(count1,:) = (bd(count2,:) + bd(count2+2,:))/2;
+    count1 = count1 + nv(i)-1;
+    count2 = count2 + 1;
+end
 end
 function out = VFrpr(pt1,pt2)
-   v = (pt2 - pt1);
-   teta = mod(mod(atan2(v(2),v(1)),2*pi),2*pi);
-   tetaDr = mod(4*teta,2*pi); 
-   out = [cos(tetaDr),sin(tetaDr)];
+v = (pt2 - pt1);
+teta = mod(mod(atan2(v(2),v(1)),2*pi),2*pi);
+tetaDr = mod(4*teta,2*pi);
+out = [cos(tetaDr),sin(tetaDr)];
 end
 function [ptsSing,triSing,idxPre,ptSing] = getSingularPts(mesh,pts,u)
 n = length(mesh);
@@ -223,8 +294,11 @@ ptSing = Singular.empty;
 for i = 1:n
     nodes = mesh(i).nodes;
     v = u(nodes,:);
+    if i == 13
+        a=1;
+    end
     idx = idxPoincare(v);
-    if (idx == 0)
+    if (idx == 0 )
         continue
     end
     ptSingular = Singular();
@@ -241,10 +315,11 @@ for i = 1:n
     idxPre(end+1) = idx;
     ptSingular.pt = (pt(1:2))';
     ptSingular.tri = mesh(i);
-    ptSingular.idxPoincare = idx; 
+    ptSingular.idxPoincare = idx;
     ptSingular.u = u;
-    ptSing(end+1) = ptSingular; 
+    ptSing(end+1) = ptSingular;
 end
+
 end
 function int = idxPoincare(v)
 v1 = v(1,:);
@@ -260,51 +335,51 @@ function out = deltapi(tetai,tetaj)
 out = mod((tetaj - tetai + pi),2*pi) - pi;
 end
 function mesh = createMesh(meshTri,pts)
-   n = size(meshTri,1);
-   mesh(n) = triangle;
-   for i = 1:n
-       nodes = meshTri(i,:);
-       mesh(i).nodes = nodes; 
-       mesh(i).pts = pts(nodes,:);
-       mesh(i).triadj(3) = triangle;
-       edge1 = [nodes(2),nodes(1)];
-       edge2 = [nodes(2),nodes(3)];
-       edge3 = [nodes(3),nodes(1)];
-       idx1 = find(sum(ismember(meshTri,edge1),2) == 2); 
-       idx2 = find(sum(ismember(meshTri,edge2),2) == 2); 
-       idx3 = find(sum(ismember(meshTri,edge3),2) == 2); 
-       if (length(idx1) == 2)
-           t1 = triangle;
-           t1.nodes = meshTri(idx1(find(idx1 ~= i)),:);
-           t1.pts = pts(t1.nodes,:);
-           mesh(i).triadj(1) = t1;
-       end
-       if (length(idx2) == 2)
-           t2 = triangle;
-           t2.nodes = meshTri(idx2(find(idx2 ~= i)),:);
-           t2.pts = pts(t2.nodes,:);
-           mesh(i).triadj(2) = t2;
-       end
-       if (length(idx3) == 2)
-           t3 = triangle;
-           t3.nodes = meshTri(idx3(find(idx3 ~= i)),:);
-           t3.pts = pts(t3.nodes,:);
-           mesh(i).triadj(3) = t3;
-       end
-   end
-   for i = 1:n
-       t = mesh(i);
-       t.mesh = mesh;
-   end
+n = size(meshTri,1);
+mesh(n) = triangle;
+for i = 1:n
+    nodes = meshTri(i,:);
+    mesh(i).nodes = nodes;
+    mesh(i).pts = pts(nodes,:);
+    mesh(i).triadj(3) = triangle;
+    edge1 = [nodes(2),nodes(1)];
+    edge2 = [nodes(2),nodes(3)];
+    edge3 = [nodes(3),nodes(1)];
+    idx1 = find(sum(ismember(meshTri,edge1),2) == 2);
+    idx2 = find(sum(ismember(meshTri,edge2),2) == 2);
+    idx3 = find(sum(ismember(meshTri,edge3),2) == 2);
+    if (length(idx1) == 2)
+        t1 = triangle;
+        t1.nodes = meshTri(idx1(find(idx1 ~= i)),:);
+        t1.pts = pts(t1.nodes,:);
+        mesh(i).triadj(1) = t1;
+    end
+    if (length(idx2) == 2)
+        t2 = triangle;
+        t2.nodes = meshTri(idx2(find(idx2 ~= i)),:);
+        t2.pts = pts(t2.nodes,:);
+        mesh(i).triadj(2) = t2;
+    end
+    if (length(idx3) == 2)
+        t3 = triangle;
+        t3.nodes = meshTri(idx3(find(idx3 ~= i)),:);
+        t3.pts = pts(t3.nodes,:);
+        mesh(i).triadj(3) = t3;
+    end
+end
+for i = 1:n
+    t = mesh(i);
+    t.mesh = mesh;
+end
 end
 function crossVF = createCrossVF(u)
- teta = mod(mod(atan2(u(:,2),u(:,1)),2*pi),2*pi);
- teta = teta/4;
- v0 = [cos(teta),sin(teta)];
- v1 = [cos(teta + pi/2),sin(teta + pi/2)];
- v2 = [cos(teta + 2*pi/2),sin(teta + 2*pi/2)];
- v3 = [cos(teta + 3*pi/2),sin(teta + 3*pi/2)];
- crossVF = [v0,v1,v2,v3];
+teta = mod(mod(atan2(u(:,2),u(:,1)),2*pi),2*pi);
+teta = teta/4;
+v0 = [cos(teta),sin(teta)];
+v1 = [cos(teta + pi/2),sin(teta + pi/2)];
+v2 = [cos(teta + 2*pi/2),sin(teta + 2*pi/2)];
+v3 = [cos(teta + 3*pi/2),sin(teta + 3*pi/2)];
+crossVF = [v0,v1,v2,v3];
 end
 function out = whichCurve(pt,curves)
 out = [];
@@ -312,11 +387,25 @@ bool = false;
 for i = 1:length(curves)
     c = curves{i};
     if pt == c(1,:)
-        out = c; 
+        out = c;
         bool = true;
     elseif pt == c(end,:)
-        out = c; 
-        bool = false; 
+        out = c;
+        bool = false;
+    end
+end
+end
+function out = whichSing(id,ptSing)
+for i=1:length(ptSing)
+    ptS = ptSing(i);
+    if ismember(id,ptS.ptBoundEdge(:,1))
+        [~,loc] = ismember(id,ptS.ptBoundEdge(:,1));
+        out = ptS.ptBound(loc,:);
+        return
+    elseif ismember(id,ptS.ptBoundEdge(:,2))
+        [~,loc] = ismember(id,ptS.ptBoundEdge(:,2));
+        out = ptS.ptBound(loc,:);
+        return
     end
 end
 end
