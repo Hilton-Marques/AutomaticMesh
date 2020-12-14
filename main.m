@@ -46,59 +46,59 @@ for i = 1:length(ptSing)
     ptS.initialize();
     ptS.integrate();
 end
-internalCurves = cell.empty;
-for i = 1:length(ptSing)
-    ptS = ptSing(i);
-    ptBound = ptS.ptBound;
-    ptBoundEdge = ptS.ptBoundEdge;
-    for j = 1: length(ptS.streams)
-        c = ptS.streams{j};
-        internalCurves(end+1) = {c};
-    end
-end
-%Internal curves
 % internalCurves = cell.empty;
-% boundaryCurves = cell.empty;
-% mainCurves = cell.empty;
 % for i = 1:length(ptSing)
 %     ptS = ptSing(i);
 %     ptBound = ptS.ptBound;
 %     ptBoundEdge = ptS.ptBoundEdge;
-%     for j = 1: size(ptBound,1)
-%         pt = ptBound(j,:);
-%         inter = ptBoundEdge(j,1);
-%         sideCurve = {whichCurve(pt,ptS.streams)};
-%         boundaryCurves(end+1) = sideCurve;
-%         internalCurves(end+1) = sideCurve;
-%     end
-%     ptBound = [];
-%     for k=1:length(boundaryCurves)
-%         cb = boundaryCurves{k};
-%         ptBound(end+1,1:2) = cb(end,:);
-%     end
-%     for j = 1:length(ptS.streams)
+%     for j = 1: length(ptS.streams)
 %         c = ptS.streams{j};
-%         if ~ismember(c(end,:),ptBound,'rows')
-%             mainCurves(end+1) = {c};
-%            
-%         end
+%         internalCurves(end+1) = {c};
 %     end
-%     boundaryCurves = cell.empty;
 % end
-% cmain1 = mainCurves{1};
-% cmain2 = mainCurves{2};
-% N = [size(cmain1,1),size(cmain2,1)];
-% N1 = size(cmain1,1);
-% N2 = size(cmain2,1);
-% Nmax = max(N1,N2);
-% def = Nmax - N2;
-% pt2 = cmain2(end,:);
-% teste = cmain1 - pt2;
-% norm = vecnorm(teste,2,2);
-% [~,id] = min(norm);
-% mergedCurve = (cmain1(id:end,:) + flip(cmain2((id-def):end,:) ) )/2;
-% mainCurve = [cmain1(1:id,:);mergedCurve;flip(cmain2(1:(id-def),:))];
-% internalCurves(end+1) = {mainCurve};
+%Internal curves
+internalCurves = cell.empty;
+boundaryCurves = cell.empty;
+mainCurves = cell.empty;
+for i = 1:length(ptSing)
+    ptS = ptSing(i);
+    ptBound = ptS.ptBound;
+    ptBoundEdge = ptS.ptBoundEdge;
+    for j = 1: size(ptBound,1)
+        pt = ptBound(j,:);
+        inter = ptBoundEdge(j,1);
+        sideCurve = {whichCurve(pt,ptS.streams)};
+        boundaryCurves(end+1) = sideCurve;
+        internalCurves(end+1) = sideCurve;
+    end
+    ptBound = [];
+    for k=1:length(boundaryCurves)
+        cb = boundaryCurves{k};
+        ptBound(end+1,1:2) = cb(end,:);
+    end
+    for j = 1:length(ptS.streams)
+        c = ptS.streams{j};
+        if ~ismember(c(end,:),ptBound,'rows')
+            mainCurves(end+1) = {c};
+           
+        end
+    end
+    boundaryCurves = cell.empty;
+end
+cmain1 = mainCurves{1};
+cmain2 = mainCurves{2};
+N = [size(cmain1,1),size(cmain2,1)];
+N1 = size(cmain1,1);
+N2 = size(cmain2,1);
+Nmax = max(N1,N2);
+def = Nmax - N2;
+pt2 = cmain2(end,:);
+teste = cmain1 - pt2;
+norm = vecnorm(teste,2,2);
+[~,id] = min(norm);
+mergedCurve = (cmain1(id:end,:) + flip(cmain2((id-def):end,:) ) )/2;
+mainCurve = [cmain1(1:id,:);mergedCurve;flip(cmain2(1:(id-def),:))];
+internalCurves(end+1) = {mainCurve};
 
 %[p1,p2,p3,p4] = transfinito(ptSing,Curves,nS,nC,pol,internalCurves);
 %% plot
@@ -152,10 +152,10 @@ for i = 1:length(internalCurves)
     ci = internalCurves{i};
     plot(ci(:,1),ci(:,2),'color','red');
 end
-% for i = 1:length(mainCurves)
-%     ci = mainCurves{i};
-%     plot(ci(:,1),ci(:,2),'color','red');
-% end
+for i = 1:3
+    ci = mainCurves{i};
+    plot(ci(:,1),ci(:,2),'color','red');
+end
 
 exportgraphics(ax,'myplot18.png','Resolution',1000)
 
