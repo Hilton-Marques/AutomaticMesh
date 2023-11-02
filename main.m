@@ -2,7 +2,12 @@
 clear
 close(findall(0,'Type','figure'));
 clc;
-%% Input
+
+%%Input
+r = 1.0; % circle radius
+c = [1,1]; % circle center
+nsubd = 10; % number of subdivisons of square center
+%% Parameters
 nC = 2; % number of curves
 nS = 200; % number of subdivisions for each curve
 ng = 60;  % number of subdivisions for grid
@@ -24,17 +29,15 @@ inside = getGridInside(X,Y,pol);
 total = [pol;inside];  % total points
 meshTri = delaunay(total(:,1),total(:,2));
 mesh = createMesh(meshTri,total);
-%% get representative VF and Solve
+%% Get representative VF and Solve
 [vfrBd,tan] = createVfrBd(Curves,nB);
 mef = FEM(meshTri,total,nB);
 ux = mef.Solver(vfrBd(:,1));
 uy = mef.Solver(vfrBd(:,2));
 u = [ux,uy];
 [ptsSing,triSing,idxPre,ptSing] = getSingularPts(mesh,total,u);
-figure
-set(gca,'XColor', 'none','YColor','none')
-hold on
-%% main loop
+
+%% Main loop
 for i = 1:length(ptSing)
     ptS = ptSing(i);
     ptS.color = i*[0.25,0.4,0.2];
@@ -42,61 +45,15 @@ for i = 1:length(ptSing)
     ptS.initialize();
     ptS.integrate();
 end
-[p1,p2,p3,p4] = transfinito(ptSing,Curves,nS,nC,pol);
-%% plot
-%1
-axis equal
-ax = gca;
-plot(c1(:,1),c1(:,2),'Color','b');
-plot(c2(:,1),c2(:,2),'Color','r');
-%exportgraphics(ax,'myplot17.png','Resolution',1000)
-%2
-%quiver(pol(:,1),pol(:,2),0.1*tan(:,1),0.1*tan(:,2),'AutoScale','off','Color','g')
-%3
-crossBd = createCrossVF(vfrBd);
-%quiver(pol(:,1),pol(:,2),0.025*crossBd(:,1),0.025*crossBd(:,2),'AutoScale','off','Color','g')
-%quiver(pol(:,1),pol(:,2),0.025*crossBd(:,3),0.025*crossBd(:,4),'AutoScale','off','Color','g')
-%quiver(pol(:,1),pol(:,2),0.025*crossBd(:,5),0.025*crossBd(:,6),'AutoScale','off','Color','g')
-%quiver(pol(:,1),pol(:,2),0.025*crossBd(:,7),0.025*crossBd(:,8),'AutoScale','off','Color','g')
-%4
-%quiver(pol(:,1),pol(:,2),0.1*vfrBd(:,1),0.1*vfrBd(:,2),'AutoScale','off','Color','g')
-%5
-%plot(inside(:,1),inside(:,2),'x','Color','y');
-%6
-%triplot(meshTri,total(:,1),total(:,2),'Color','r');
-%7
-%quiver(total(:,1),total(:,2),0.1*u(:,1),0.1*u(:,2),'AutoScale','off','Color','g')
-%8
-%plot(ptsSing(:,1),ptsSing(:,2),'.','Color','cyan','MarkerSize',20)
-%9
-% crossBd = createCrossVF(u);
-% quiver(total(:,1),total(:,2),0.025*crossBd(:,1),0.025*crossBd(:,2),'AutoScale','off','Color','g')
-% quiver(total(:,1),total(:,2),0.025*crossBd(:,3),0.025*crossBd(:,4),'AutoScale','off','Color','g')
-% quiver(total(:,1),total(:,2),0.025*crossBd(:,5),0.025*crossBd(:,6),'AutoScale','off','Color','g')
-% quiver(total(:,1),total(:,2),0.025*crossBd(:,7),0.025*crossBd(:,8),'AutoScale','off','Color','g')
-
-%plot esqueleto
-
-p1.plot();
-%exportgraphics(ax,'myplot12.png','Resolution',1000)
-p2.plot();
-%exportgraphics(ax,'myplot13.png','Resolution',1000)
-p3.plot();
-%exportgraphics(ax,'myplot14.png','Resolution',1000)
-p4.plot();
-%exportgraphics(ax,'myplot15.png','Resolution',1000)
-%
-% for i = 1:length(internalCurves)
-%     ci = internalCurves{i};
-%     plot(ci(:,1),ci(:,2),'color','red');
-% end
-
-%exportgraphics(ax,'myplot16.png','Resolution',1000)
-
-%exportgraphics(ax,'myplot11.png','Resolution',1000)
-
-
-
+[V,F] = transfinito(ptSing,Curves,nS,nC,pol,nsubd);
+V = r*V + c;
+figure
+set(gca,'XColor', 'none','YColor','none')
+hold on
+plot(V,F);
+exportgraphics(gca,'mesh.jpg','Resolution',300);
+writematrix(V);
+writematrix(F);
 %% Functions
 function out = getBd(Curves,n)
 nt = length(Curves)*n;
@@ -202,9 +159,6 @@ ptSing = Singular.empty;
 for i = 1:n
     nodes = mesh(i).nodes;
     v = u(nodes,:);
-    if i == 13
-        a=1;
-    end
     idx = idxPoincare(v);
     if (idx == 0 )
         continue
@@ -317,7 +271,8 @@ for i=1:length(ptSing)
     end
 end
 end
-function [p1,p2,p3,p4] = transfinito(ptSing,Curves,nS,nC,pol)
+
+function [V,F] = transfinito(ptSing,Curves,nS,nC,pol, nsubd)
 %% Divide to transfinite
 %Get little parts
 internalCurves = cell.empty;
@@ -401,11 +356,60 @@ for i = 1:length(Curves)
     indexBef = index+1;
 end
 patch1 = {internalCurves{3},flip(externalCurves{1}),internalCurves{4},externalCurves{6}};
-p1 = Projetor(patch1);
+p1 = Projetor(patch1, nsubd);
 patch2 = {internalCurves{5},flip(externalCurves{2}),internalCurves{2},internalCurves{4}};
-p2 = Projetor(patch2);
+p2 = Projetor(patch2, nsubd);
+internalCurves{5} = p2.Ci{1};
 patch3 = {externalCurves{3},internalCurves{1},flip(internalCurves{2}),externalCurves{4}};
-p3 = Projetor(patch3);
+p3 = Projetor(patch3, nsubd);
 patch4 = {externalCurves{5},flip(internalCurves{5}),flip(internalCurves{1}),flip(internalCurves{3})};
-p4 = Projetor(patch4);
+p4 = Projetor(patch4, nsubd);
+%flip patches in y direction
+meshes(8) = struct('V', [], 'F',[]);
+patches = [p1,p2,p3,p4,p1,p2,p3,p4];
+for i = 1:8
+    meshes(i).V = patches(i).m_nodes;
+    meshes(i).F = patches(i).m_conec;
+end
+for i = 5:8
+    meshes(i).V = [meshes(i).V(:,1), -meshes(i).V(:,2)];
+end
+[V, F] = Merge(meshes);
+[V, F] = RemoveDuplicates(V,F);
+end
+
+function [nodes, quads] = Merge(meshes)
+    nodes = [];
+    for i = 1:size(meshes,2)
+        nodes = [nodes; meshes(i).V];
+    end
+    quads = [];
+    count_nodes = 0;
+    for i = 1:size(meshes,2)
+        quads = [quads; count_nodes + meshes(i).F];
+        count_nodes = count_nodes + size(meshes(i).V,1);
+    end
+end
+
+function [VV, FF] = RemoveDuplicates(V,F)
+[VV, ~, old_points_new_ids] = uniquetol(V(:,1:2),0.1, 'ByRows',true,'DataScale',[0.1,0.1]);
+ FF = old_points_new_ids(F);
+end
+
+function plot(V,F)
+for i = 1:size(F,1)
+    pts = [V(F(i,1),:); V(F(i,2),:); V(F(i,3),:); V(F(i,4),:)];
+    drawRect(V(F(i,1),:),...
+                  V(F(i,2),:),...
+                  V(F(i,3),:),...
+                  V(F(i,4),:));
+    fill(pts(:,1),pts(:,2),[0.2588 0.5216 0.9569]);
+end
+end
+
+function drawRect(p1,p2,p3,p4)
+line([p1(1),p2(1)],[p1(2),p2(2)]);
+line([p2(1),p3(1)],[p2(2),p3(2)]);
+line([p3(1),p4(1)],[p3(2),p4(2)]);
+line([p4(1),p1(1)],[p4(2),p1(2)]);
 end

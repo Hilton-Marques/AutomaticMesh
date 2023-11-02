@@ -1,13 +1,15 @@
 classdef Projetor < handle
-    properties
+    properties 
         Ci = cell.empty;
         meshx ;
         meshy ;
         nu;
         nv;
+        m_conec
+        m_nodes
     end
     methods
-        function this = Projetor(Ci)
+        function this = Projetor(Ci, Nmax)
             C1 = Ci{1};
             C2 = Ci{2};
             C3 = Ci{3};
@@ -15,9 +17,7 @@ classdef Projetor < handle
             nC1 = size(C1,1);
             nC2 = size(C2,1);
             nC3 = size(C3,1);
-            nC4 = size(C4,1);
-            Nmax = min([nC1,nC2,nC3,nC4]);
-            Nmax = 10;
+            nC4 = size(C4,1);            
             Ci{1} = this.correction(C1,Nmax);
             Ci{2} = this.correction(C2,Nmax);
             Ci{3} = this.correction(C3,Nmax);
@@ -34,6 +34,8 @@ classdef Projetor < handle
             %             end
             this.Ci = Ci;
             this.start()
+            this.m_conec = this.BuildConec();
+            this.m_nodes = [this.meshx(:), this.meshy(:)];
         end
         function start(this)
             Ci = this.Ci;
@@ -68,22 +70,50 @@ classdef Projetor < handle
             this.nu = nu;
             this.nv = nv;
         end
-        function plot(this)
+
+        function conec = BuildConec(this)
             meshx = this.meshx;
             meshy = this.meshy;
             nv = this.nv;
             nu = this.nu;
+            conec = zeros((nv-1)*(nu-1), 4);
+            count = 1;
             for i = 1:nv-1
                 for j = 1: nu-1
-                    p1 = [meshx(i,j),meshy(i,j)];
-                    p2 = [meshx(i,j+1),meshy(i,j+1)];
-                    p3 = [meshx(i+1,j+1),meshy(i+1,j+1)];
-                    p4 = [meshx(i+1,j),meshy(i+1,j)];
-                    px = [p1(1),p2(1),p3(1),p4(1)];
-                    py = [p1(2),p2(2),p3(2),p4(2)];
-                    this.drawRect(p1,p2,p3,p4);
+                    conec_ij = [this.mesh2vec(i,j), this.mesh2vec(i,j+1), ...
+                             this.mesh2vec(i+1, j+1), this.mesh2vec(i+1,j)];
+                    conec(count,:) = conec_ij;
+                    count = count + 1;
                 end
             end
+        end
+
+        function plot(this)
+            for i = 1:size(this.m_conec,1)
+                this.drawRect(this.m_nodes(this.m_conec(i,1),:),...
+                              this.m_nodes(this.m_conec(i,2),:),...
+                              this.m_nodes(this.m_conec(i,3),:),...
+                              this.m_nodes(this.m_conec(i,4),:));
+            end
+%             meshx = this.meshx;
+%             meshy = this.meshy;
+%             nv = this.nv;
+%             nu = this.nu;
+%             for i = 1:nv-1
+%                 for j = 1: nu-1                   
+%                     p1 = [meshx(i,j),meshy(i,j)];
+%                     p2 = [meshx(i,j+1),meshy(i,j+1)];
+%                     p3 = [meshx(i+1,j+1),meshy(i+1,j+1)];
+%                     p4 = [meshx(i+1,j),meshy(i+1,j)];
+%                     px = [p1(1),p2(1),p3(1),p4(1)];
+%                     py = [p1(2),p2(2),p3(2),p4(2)];
+%                     this.drawRect(p1,p2,p3,p4);
+%                 end
+%             end
+        end
+
+        function id = mesh2vec(this, i, j)
+            id = (i - 1)*this.nv + j;
         end
         function newCMenor = correction(this,curve,nc_maior)
             L = this.totalLength(curve);
@@ -133,5 +163,6 @@ classdef Projetor < handle
                 end
             end
         end
+        
     end
 end
